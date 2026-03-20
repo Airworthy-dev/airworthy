@@ -1,98 +1,218 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export default function HomeScreen() {
+const STATS = [
+  { label: 'Open\nWork Orders', value: '4', colorKey: 'warning' as const },
+  { label: 'Active\nAircraft', value: '6', colorKey: 'primary' as const },
+  { label: 'Due This\nMonth', value: '3', colorKey: 'danger' as const },
+];
+
+const RECENT_WORK_ORDERS = [
+  { id: 'WO-1042', tail: 'N182TW', description: '100-Hour Inspection', status: 'In Progress', statusType: 'warning' as const },
+  { id: 'WO-1041', tail: 'N44XA', description: 'Annual Inspection', status: 'Open', statusType: 'danger' as const },
+  { id: 'WO-1040', tail: 'N8801B', description: 'Avionics Update – G530', status: 'Complete', statusType: 'success' as const },
+];
+
+const UPCOMING_REMINDERS = [
+  { tail: 'N182TW', type: 'Pitot-Static Check', due: 'Mar 28, 2026' },
+  { tail: 'N44XA', type: 'ELT Battery Replacement', due: 'Apr 5, 2026' },
+  { tail: 'N7762C', type: 'Oil Change', due: 'Apr 12, 2026' },
+];
+
+export default function DashboardScreen() {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  const s = styles(colors);
+
+  const statusStyle = (type: 'warning' | 'danger' | 'success' | 'primary') => ({
+    backgroundColor: colors[`${type}Light`],
+    color: colors[type],
+  });
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={s.safeArea}>
+      <ScrollView style={s.container} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={s.header}>
+          <Text style={s.appName}>Airworthy</Text>
+          <Text style={s.headerDate}>Mar 19, 2026</Text>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Stats Row */}
+        <View style={s.statsRow}>
+          {STATS.map((stat) => (
+            <View key={stat.label} style={[s.statCard, { borderTopColor: colors[stat.colorKey] }]}>
+              <Text style={[s.statValue, { color: colors[stat.colorKey] }]}>{stat.value}</Text>
+              <Text style={s.statLabel}>{stat.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Recent Work Orders */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Recent Work Orders</Text>
+          {RECENT_WORK_ORDERS.map((wo) => (
+            <View key={wo.id} style={s.card}>
+              <View style={s.cardRow}>
+                <View style={s.cardLeft}>
+                  <Text style={s.cardId}>{wo.id}</Text>
+                  <Text style={s.cardTail}>{wo.tail}</Text>
+                </View>
+                <View style={[s.badge, { backgroundColor: statusStyle(wo.statusType).backgroundColor }]}>
+                  <Text style={[s.badgeText, { color: statusStyle(wo.statusType).color }]}>
+                    {wo.status}
+                  </Text>
+                </View>
+              </View>
+              <Text style={s.cardDescription}>{wo.description}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Upcoming Reminders */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Upcoming Reminders</Text>
+          {UPCOMING_REMINDERS.map((r, i) => (
+            <View key={i} style={s.card}>
+              <View style={s.cardRow}>
+                <View style={s.cardLeft}>
+                  <Text style={s.cardTail}>{r.tail}</Text>
+                  <Text style={s.cardDescription}>{r.type}</Text>
+                </View>
+                <Text style={s.reminderDue}>{r.due}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+const styles = (colors: typeof Colors.light) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: 20,
+      paddingBottom: 24,
+    },
+    appName: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: colors.primary,
+      letterSpacing: -0.5,
+    },
+    headerDate: {
+      fontSize: 14,
+      color: colors.subtext,
+      fontWeight: '400',
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 28,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 14,
+      borderTopWidth: 3,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    statValue: {
+      fontSize: 28,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 11,
+      color: colors.subtext,
+      fontWeight: '500',
+      lineHeight: 15,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 8,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    cardRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 6,
+    },
+    cardLeft: {
+      gap: 2,
+    },
+    cardId: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    cardTail: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    cardDescription: {
+      fontSize: 14,
+      color: colors.subtext,
+    },
+    badge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    reminderDue: {
+      fontSize: 13,
+      color: colors.subtext,
+      fontWeight: '500',
+    },
+  });
