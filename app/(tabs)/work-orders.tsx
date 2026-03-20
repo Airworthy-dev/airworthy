@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStore } from '@/store';
-import { WorkOrderStatus } from '@/store/types';
+import { WorkOrder, WorkOrderStatus } from '@/store/types';
 import { formatDate } from '@/utils/dates';
 
 type FilterValue = WorkOrderStatus | 'all' | 'this-month';
@@ -47,17 +47,71 @@ export default function WorkOrdersScreen() {
     { label: String(counts['this-month']), sublabel: 'This Month', value: 'this-month', colorKey: 'accent' },
   ];
 
+  const activeCard = FILTER_CARDS.find((f) => f.value === filter)!;
+
   const filtered = workOrders.filter((wo) => {
     let matchesFilter = true;
     if (filter === 'this-month') matchesFilter = wo.status !== 'complete' && isThisMonth(wo.date);
     else if (filter !== 'all') matchesFilter = wo.status === filter;
-
     const q = search.toLowerCase();
     const matchesSearch = !q || wo.id.toLowerCase().includes(q) || wo.tail.toLowerCase().includes(q) || wo.description.toLowerCase().includes(q);
     return matchesFilter && matchesSearch;
   });
 
-  const activeCard = FILTER_CARDS.find((f) => f.value === filter)!;
+  const ListHeader = (
+    <View>
+      {/* Filter pills */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterContent}>
+        {FILTER_CARDS.map((f) => {
+          const active = filter === f.value;
+          const color = colors[f.colorKey] as string;
+          return (
+            <TouchableOpacity
+              key={f.value}
+              style={[s.filterChip, active && { borderColor: color, backgroundColor: color }]}
+              onPress={() => setFilter(f.value)}
+              activeOpacity={0.7}>
+              <Text style={[s.filterChipCount, { color: active ? '#fff' : colors.text }]}>{f.label}</Text>
+              <Text style={[s.filterChipLabel, { color: active ? '#fff' : colors.subtext }]}>{f.sublabel}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Search */}
+      <View style={s.searchContainer}>
+        <TextInput
+          style={s.searchInput}
+          placeholder={`Search ${activeCard.sublabel.toLowerCase()} work orders…`}
+          placeholderTextColor={colors.subtext}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+    </View>
+  );
+
+  const renderItem = ({ item: wo }: { item: WorkOrder }) => {
+    const cfg = STATUS_CONFIG[wo.status];
+    return (
+      <TouchableOpacity style={s.card} activeOpacity={0.7} onPress={() => router.push(`/work-order/${wo.id}`)}>
+        <View style={s.cardTop}>
+          <Text style={s.cardId}>{wo.id}</Text>
+          <View style={[s.badge, { backgroundColor: colors[`${cfg.colorKey}Light`] }]}>
+            <Text style={[s.badgeText, { color: colors[cfg.colorKey] }]}>{cfg.label}</Text>
+          </View>
+        </View>
+        <Text style={s.cardDescription}>{wo.description}</Text>
+        <View style={s.cardMeta}>
+          <Text style={s.cardTail}>{wo.tail}</Text>
+          <Text style={s.cardDot}>·</Text>
+          <Text style={s.cardMetaText}>{wo.mechanic}</Text>
+          <Text style={s.cardDot}>·</Text>
+          <Text style={s.cardMetaText}>{formatDate(wo.date)}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -68,67 +122,20 @@ export default function WorkOrdersScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filter Cards */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterCards}>
-        {FILTER_CARDS.map((f) => {
-          const active = filter === f.value;
-          const color = colors[f.colorKey] as string;
-          return (
-            <TouchableOpacity
-              key={f.value}
-              style={[s.filterCard, active && { borderColor: color, borderWidth: 2 }]}
-              onPress={() => setFilter(f.value)}
-              activeOpacity={0.7}>
-              <Text style={[s.filterCardCount, { color: active ? color : colors.text }]}>{f.label}</Text>
-              <Text style={[s.filterCardLabel, { color: active ? color : colors.subtext }]}>{f.sublabel}</Text>
-              {active && <View style={[s.filterCardDot, { backgroundColor: color }]} />}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* Active filter label + search */}
-      <View style={s.searchRow}>
-        <View style={s.searchContainer}>
-          <TextInput
-            style={s.searchInput}
-            placeholder={`Search ${activeCard.sublabel.toLowerCase()} work orders…`}
-            placeholderTextColor={colors.subtext}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-      </View>
-
-      <ScrollView style={s.list} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-        {filtered.length === 0 ? (
+      <FlatList
+        data={filtered}
+        keyExtractor={(wo) => wo.id}
+        renderItem={renderItem}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={
           <View style={s.empty}>
             <Text style={s.emptyText}>No {activeCard.sublabel.toLowerCase()} work orders</Text>
           </View>
-        ) : (
-          filtered.map((wo) => {
-            const cfg = STATUS_CONFIG[wo.status];
-            return (
-              <TouchableOpacity key={wo.id} style={s.card} activeOpacity={0.7} onPress={() => router.push(`/work-order/${wo.id}`)}>
-                <View style={s.cardTop}>
-                  <Text style={s.cardId}>{wo.id}</Text>
-                  <View style={[s.badge, { backgroundColor: colors[`${cfg.colorKey}Light`] }]}>
-                    <Text style={[s.badgeText, { color: colors[cfg.colorKey] }]}>{cfg.label}</Text>
-                  </View>
-                </View>
-                <Text style={s.cardDescription}>{wo.description}</Text>
-                <View style={s.cardMeta}>
-                  <Text style={s.cardTail}>{wo.tail}</Text>
-                  <Text style={s.cardDot}>·</Text>
-                  <Text style={s.cardMetaText}>{wo.mechanic}</Text>
-                  <Text style={s.cardDot}>·</Text>
-                  <Text style={s.cardMetaText}>{formatDate(wo.date)}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+        }
+        contentContainerStyle={s.listContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
     </SafeAreaView>
   );
 }
@@ -140,18 +147,14 @@ const styles = (colors: typeof Colors.light) =>
     title: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
     newButton: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
     newButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    filterScroll: { marginBottom: 12 },
-    filterCards: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8, gap: 10 },
-    filterCard: { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, minWidth: 80, alignItems: 'center', flexDirection: 'row', gap: 6, borderWidth: 1.5, borderColor: colors.border },
-    filterCardCount: { fontSize: 17, fontWeight: '700' },
-    filterCardLabel: { fontSize: 12, fontWeight: '500' },
-    filterCardDot: { display: 'none', width: 0, height: 0 },
-    searchRow: { paddingHorizontal: 20, marginBottom: 8 },
-    searchContainer: { flex: 1 },
+    filterContent: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
+    filterChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card },
+    filterChipCount: { fontSize: 15, fontWeight: '700' },
+    filterChipLabel: { fontSize: 13, fontWeight: '500' },
+    searchContainer: { paddingHorizontal: 20, marginBottom: 12 },
     searchInput: { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border },
-    list: { flex: 1 },
     listContent: { paddingHorizontal: 20, paddingBottom: 32, gap: 8 },
-    card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+    card: { backgroundColor: colors.card, borderRadius: 12, padding: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1, marginBottom: 8 },
     cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     cardId: { fontSize: 13, fontWeight: '600', color: colors.primary },
     badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
@@ -161,6 +164,6 @@ const styles = (colors: typeof Colors.light) =>
     cardTail: { fontSize: 13, fontWeight: '600', color: colors.accent },
     cardDot: { fontSize: 13, color: colors.border },
     cardMetaText: { fontSize: 13, color: colors.subtext },
-    empty: { paddingTop: 60, alignItems: 'center' },
+    empty: { paddingTop: 40, alignItems: 'center' },
     emptyText: { fontSize: 16, color: colors.subtext },
   });
