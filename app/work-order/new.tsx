@@ -1,26 +1,17 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
+import DatePickerModal from '@/components/date-picker-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStore } from '@/store';
 import { WorkOrderStatus } from '@/store/types';
-import { todayISO } from '@/utils/dates';
+import { formatDate, todayISO } from '@/utils/dates';
 
 const STATUS_OPTIONS: WorkOrderStatus[] = ['open', 'in-progress', 'complete'];
 const STATUS_LABELS: Record<WorkOrderStatus, string> = { open: 'Open', 'in-progress': 'In Progress', complete: 'Complete' };
-
-function isoToDate(iso: string): Date {
-  const d = new Date(iso + 'T00:00:00');
-  return isNaN(d.getTime()) ? new Date() : d;
-}
-
-function dateToISO(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
 
 export default function NewWorkOrderScreen() {
   const colorScheme = useColorScheme();
@@ -36,7 +27,7 @@ export default function NewWorkOrderScreen() {
     status: 'open' as WorkOrderStatus,
     notes: '',
   });
-  const [showPicker, setShowPicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const canSave = form.tail.trim() && form.description.trim() && form.date.trim();
 
@@ -44,11 +35,6 @@ export default function NewWorkOrderScreen() {
     if (!canSave) return;
     addWorkOrder(form);
     router.back();
-  };
-
-  const onPickerChange = (_: any, selected?: Date) => {
-    if (Platform.OS === 'android') setShowPicker(false);
-    if (selected) setForm({ ...form, date: dateToISO(selected) });
   };
 
   return (
@@ -74,48 +60,14 @@ export default function NewWorkOrderScreen() {
               placeholderTextColor={colors.subtext}
               keyboardType="numeric"
             />
-            <TouchableOpacity style={s.calendarBtn} onPress={() => setShowPicker(true)}>
+            <TouchableOpacity style={s.calendarBtn} onPress={() => setShowCalendar(true)}>
               <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
+          {form.date.length === 10 && (
+            <Text style={s.datePreview}>{formatDate(form.date)}</Text>
+          )}
         </Field>
-
-        {/* Android: picker renders inline when showPicker is true */}
-        {Platform.OS === 'android' && showPicker && (
-          <DateTimePicker
-            value={isoToDate(form.date)}
-            mode="date"
-            display="calendar"
-            onChange={onPickerChange}
-          />
-        )}
-
-        {/* iOS: show picker in a modal */}
-        {Platform.OS === 'ios' && (
-          <Modal visible={showPicker} transparent animationType="slide">
-            <View style={s.modalBackdrop}>
-              <View style={s.modalSheet}>
-                <View style={s.modalHeader}>
-                  <TouchableOpacity onPress={() => setShowPicker(false)}>
-                    <Text style={s.modalCancel}>Cancel</Text>
-                  </TouchableOpacity>
-                  <Text style={s.modalTitle}>Select Date</Text>
-                  <TouchableOpacity onPress={() => setShowPicker(false)}>
-                    <Text style={s.modalDone}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-                <DateTimePicker
-                  value={isoToDate(form.date)}
-                  mode="date"
-                  display="inline"
-                  onChange={onPickerChange}
-                  style={s.picker}
-                  accentColor={colors.primary}
-                />
-              </View>
-            </View>
-          </Modal>
-        )}
 
         <Field label="Status" colors={colors}>
           <View style={s.optionRow}>
@@ -139,6 +91,13 @@ export default function NewWorkOrderScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <DatePickerModal
+        visible={showCalendar}
+        value={form.date}
+        onConfirm={(iso) => { setForm({ ...form, date: iso }); setShowCalendar(false); }}
+        onCancel={() => setShowCalendar(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -160,6 +119,7 @@ const styles = (colors: typeof Colors.light) =>
     textarea: { height: 100, textAlignVertical: 'top' },
     dateRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
     dateInput: { flex: 1 },
+    datePreview: { marginTop: 6, fontSize: 13, color: colors.primary, fontWeight: '500' },
     calendarBtn: { backgroundColor: colors.primaryLight, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: colors.border },
     optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     optionChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
@@ -170,11 +130,4 @@ const styles = (colors: typeof Colors.light) =>
     saveBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
     saveBtnDisabled: { opacity: 0.4 },
     saveBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-    modalSheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40 },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-    modalTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-    modalCancel: { fontSize: 16, color: colors.subtext },
-    modalDone: { fontSize: 16, fontWeight: '600', color: colors.primary },
-    picker: { alignSelf: 'stretch' },
   });
