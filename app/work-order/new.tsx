@@ -1,6 +1,8 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -10,6 +12,15 @@ import { todayISO } from '@/utils/dates';
 
 const STATUS_OPTIONS: WorkOrderStatus[] = ['open', 'in-progress', 'complete'];
 const STATUS_LABELS: Record<WorkOrderStatus, string> = { open: 'Open', 'in-progress': 'In Progress', complete: 'Complete' };
+
+function isoToDate(iso: string): Date {
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
+function dateToISO(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
 
 export default function NewWorkOrderScreen() {
   const colorScheme = useColorScheme();
@@ -25,6 +36,7 @@ export default function NewWorkOrderScreen() {
     status: 'open' as WorkOrderStatus,
     notes: '',
   });
+  const [showPicker, setShowPicker] = useState(false);
 
   const canSave = form.tail.trim() && form.description.trim() && form.date.trim();
 
@@ -32,6 +44,11 @@ export default function NewWorkOrderScreen() {
     if (!canSave) return;
     addWorkOrder(form);
     router.back();
+  };
+
+  const onPickerChange = (_: any, selected?: Date) => {
+    if (Platform.OS === 'android') setShowPicker(false);
+    if (selected) setForm({ ...form, date: dateToISO(selected) });
   };
 
   return (
@@ -46,9 +63,60 @@ export default function NewWorkOrderScreen() {
         <Field label="Mechanic" colors={colors}>
           <TextInput style={s.input} value={form.mechanic} onChangeText={(v) => setForm({ ...form, mechanic: v })} placeholder="e.g. J. Martinez" placeholderTextColor={colors.subtext} />
         </Field>
-        <Field label="Date (YYYY-MM-DD)" colors={colors}>
-          <TextInput style={s.input} value={form.date} onChangeText={(v) => setForm({ ...form, date: v })} placeholder="2026-03-18" placeholderTextColor={colors.subtext} />
+
+        <Field label="Date" colors={colors}>
+          <View style={s.dateRow}>
+            <TextInput
+              style={[s.input, s.dateInput]}
+              value={form.date}
+              onChangeText={(v) => setForm({ ...form, date: v })}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.subtext}
+              keyboardType="numeric"
+            />
+            <TouchableOpacity style={s.calendarBtn} onPress={() => setShowPicker(true)}>
+              <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </Field>
+
+        {/* Android: picker renders inline when showPicker is true */}
+        {Platform.OS === 'android' && showPicker && (
+          <DateTimePicker
+            value={isoToDate(form.date)}
+            mode="date"
+            display="calendar"
+            onChange={onPickerChange}
+          />
+        )}
+
+        {/* iOS: show picker in a modal */}
+        {Platform.OS === 'ios' && (
+          <Modal visible={showPicker} transparent animationType="slide">
+            <View style={s.modalBackdrop}>
+              <View style={s.modalSheet}>
+                <View style={s.modalHeader}>
+                  <TouchableOpacity onPress={() => setShowPicker(false)}>
+                    <Text style={s.modalCancel}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={s.modalTitle}>Select Date</Text>
+                  <TouchableOpacity onPress={() => setShowPicker(false)}>
+                    <Text style={s.modalDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={isoToDate(form.date)}
+                  mode="date"
+                  display="inline"
+                  onChange={onPickerChange}
+                  style={s.picker}
+                  accentColor={colors.primary}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+
         <Field label="Status" colors={colors}>
           <View style={s.optionRow}>
             {STATUS_OPTIONS.map((opt) => (
@@ -90,6 +158,9 @@ const styles = (colors: typeof Colors.light) =>
     content: { padding: 20, paddingBottom: 40 },
     input: { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border },
     textarea: { height: 100, textAlignVertical: 'top' },
+    dateRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+    dateInput: { flex: 1 },
+    calendarBtn: { backgroundColor: colors.primaryLight, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: colors.border },
     optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     optionChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     optionChipText: { fontSize: 13, fontWeight: '500', color: colors.subtext },
@@ -99,4 +170,11 @@ const styles = (colors: typeof Colors.light) =>
     saveBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
     saveBtnDisabled: { opacity: 0.4 },
     saveBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalSheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+    modalTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+    modalCancel: { fontSize: 16, color: colors.subtext },
+    modalDone: { fontSize: 16, fontWeight: '600', color: colors.primary },
+    picker: { alignSelf: 'stretch' },
   });
