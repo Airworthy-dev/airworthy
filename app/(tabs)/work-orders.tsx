@@ -69,7 +69,7 @@ export default function WorkOrdersScreen() {
       </View>
 
       {/* Filter Cards */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterCards}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterCards}>
         {FILTER_CARDS.map((f) => {
           const active = filter === f.value;
           const color = colors[f.colorKey] as string;
@@ -140,7 +140,8 @@ const styles = (colors: typeof Colors.light) =>
     title: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
     newButton: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
     newButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    filterCards: { paddingHorizontal: 20, paddingBottom: 12, gap: 10 },
+    filterScroll: { marginBottom: 4 },
+    filterCards: { paddingHorizontal: 20, paddingVertical: 4, gap: 10 },
     filterCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, minWidth: 90, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
     filterCardCount: { fontSize: 24, fontWeight: '700', marginBottom: 2 },
     filterCardLabel: { fontSize: 11, fontWeight: '600' },
